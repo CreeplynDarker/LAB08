@@ -1,22 +1,21 @@
 import json
 from dataclasses import dataclass
+from datetime import datetime
 
 @dataclass
 class TransactionEvent:
-    customer_id: str
     amount: float
+    card_number: str
+    restaurant_code: str
+    transaction_date_time: str | None = None
 
     def to_json(self) -> str:
-        return json.dumps({
-            "customer_id": self.customer_id,
-            "amount": self.amount
-        })
+        event = {
+            "eventType": "DinnerRegistered",
+            "amount": self.amount,
+            "cardNumber": self.card_number,
+            "restaurantCode": self.restaurant_code,
+            "transactionDateTime": self.transaction_date_time or datetime.now().isoformat(),
+        }
 
-    @staticmethod
-    def from_json(message: str) -> "TransactionEvent":
-        data = json.loads(message)
-
-        return TransactionEvent(
-            customer_id=data["customer_id"],
-            amount=float(data["amount"])
-        )
+        return json.dumps(event)

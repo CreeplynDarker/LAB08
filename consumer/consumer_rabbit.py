@@ -1,79 +1,86 @@
-import pika
-import json
-import sys
 import os
-from domain.reward_calculator import calculate_reward
+import sys
+import pika
+from consumer.reward_processor import process_transaction_message
 
-credenciales = pika.PlainCredentials("students", "Ut3c2026")
-parametros = pika.ConnectionParameters(
-    host="213.199.42.57",
-    port=5672,
-    virtual_host="/",
-    credentials=credenciales
-)
+QUEUE_NAME = "dinner_transactions_creeplyndarker"
 
-QUEUE_NAME = "dinner_transactions"
+RABBITMQ_HOST = "213.199.42.57"
+RABBITMQ_PORT = 5672
+RABBITMQ_VHOST = "/"
+RABBITMQ_USER = "students"
+RABBITMQ_PASSWORD = "Ut3c2026"
 
-def calculate_reward(amount, restaurant_code):
-    points = int(amount)
-    cashback = amount * 0.05
+def create_connection():
+    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
 
-    if restaurant_code == "REST001":
-        points += int(points * 0.10)
+    parameters = pika.ConnectionParameters(
+        host=RABBITMQ_HOST,
+        port=RABBITMQ_PORT,
+        virtual_host=RABBITMQ_VHOST,
+        credentials=credentials,
+        connection_attempts=3,
+        retry_delay=3,
+        socket_timeout=10,
+        blocked_connection_timeout=10,
+        heartbeat=30,
+    )
 
-    return points, cashback
+    return pika.BlockingConnection(parameters)
+
 
 def callback(ch, method, properties, body):
     try:
-        transaction = json.loads(body.decode())
+        result = process_transaction_message(body.decode())
 
-        amount = float(transaction["amount"])
-        card_number = transaction["cardNumber"]
-        restaurant_code = transaction["restaurantCode"]
-        transaction_date = transaction["transactionDateTime"]
-
-        points, cashback = calculate_reward(amount, restaurant_code)
-
-        print("\n [x] Transaction received")
-        print(f"     Card: **** **** **** {card_number[-4:]}")
-        print(f"     Restaurant: {restaurant_code}")
-        print(f"     Amount: S/ {amount:.2f}")
-        print(f"     Date: {transaction_date}")
-        print(f"     Points earned: {points}")
-        print(f"     Cashback earned: S/ {cashback:.2f}")
+        print("\n[x] Transaction received")
+        print(f"    Card: **** **** **** {result['card_last_digits']}")
+        print(f"    Restaurant: {result['restaurant_code']}")
+        print(f"    Amount: S/ {result['amount']:.2f}")
+        print(f"    Date: {result['transaction_date']}")
+        print(f"    Points earned: {result['points']}")
+        print(f"    Cashback earned: S/ {result['cashback']:.2f}")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     except Exception as error:
-        print(f" [!] Error processing message: {error}")
+        print(f"[!] Error processing message: {error}")
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
+
 def main():
-    conexion = None
+    connection = None
 
     try:
-        conexion = pika.BlockingConnection(parametros)
-        canal = conexion.channel()
+        connection = create_connection()
+        channel = connection.channel()
 
-        canal.queue_declare(queue=QUEUE_NAME, durable=True)
-        canal.basic_qos(prefetch_count=1)
+        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+        channel.basic_qos(prefetch_count=1)
 
-        canal.basic_consume(
+        channel.basic_consume(
             queue=QUEUE_NAME,
             on_message_callback=callback,
-            auto_ack=False
+            auto_ack=False,
         )
 
-        print(f' [*] Waiting for messages in queue "{QUEUE_NAME}". Press CTRL+C to exit.')
-        canal.start_consuming()
+        print(f'[*] Waiting for messages in queue "{QUEUE_NAME}". Press CTRL+C to exit.')
+        channel.start_consuming()
 
     except KeyboardInterrupt:
-        print("\n [*] Consumer stopped by user.")
+        print("\n[*] Consumer stopped by user.")
 
     finally:
-        if conexion is not None and conexion.is_open:
-            conexion.close()
-            print(" [*] RabbitMQ connection closed.")
+        if connection is not None and connection.is_open:
+            connection.close()
+            print("[*] RabbitMQ connection closed.")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n[*] Exiting consumer...")
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
