@@ -1,0 +1,6 @@
+[run]
+omit =
+    */producer/producer_rabbit.py
+    */consumer/consumer_rabbit.py
+    */tests/*
+    */__init__.py

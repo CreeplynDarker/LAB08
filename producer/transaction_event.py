@@ -17,5 +17,15 @@ class TransactionEvent:
             "restaurantCode": self.restaurant_code,
             "transactionDateTime": self.transaction_date_time or datetime.now().isoformat(),
         }
-
         return json.dumps(event)
+
+    @staticmethod
+    def from_json(message: str) -> "TransactionEvent":
+        data = json.loads(message)
+
+        return TransactionEvent(
+            amount=float(data["amount"]),
+            card_number=data["cardNumber"],
+            restaurant_code=data["restaurantCode"],
+            transaction_date_time=data["transactionDateTime"],
+        )
