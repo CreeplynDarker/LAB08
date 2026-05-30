@@ -1,14 +1,11 @@
-def calculate_reward(amount: float) -> int:
-    """
-    Calculates reward points from a transaction amount.
+def calculate_reward(amount: float, restaurant_code: str) -> tuple[int, float]:
+    if amount <= 0:
+        raise ValueError("Amount must be greater than zero")
 
-    Rule:
-    1 reward point for every 10 monetary units.
-    Example:
-    amount = 100 -> 10 points
-    """
+    points = int(amount)
+    cashback = amount * 0.05
 
-    if amount < 0:
-        raise ValueError("Amount cannot be negative")
+    if restaurant_code == "REST001":
+        points += int(points * 0.10)
 
-    return int(amount // 10)
+    return points, cashback

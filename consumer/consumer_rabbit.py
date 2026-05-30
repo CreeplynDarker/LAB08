@@ -2,6 +2,7 @@ import pika
 import json
 import sys
 import os
+from domain.reward_calculator import calculate_reward
 
 credenciales = pika.PlainCredentials("students", "Ut3c2026")
 parametros = pika.ConnectionParameters(

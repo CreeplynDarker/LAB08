@@ -1,46 +1,26 @@
 import pika
-import json
-from datetime import datetime
+from producer.transaction_event import TransactionEvent
 
-credenciales = pika.PlainCredentials("students", "Ut3c2026")
-parametros = pika.ConnectionParameters(
-    host="213.199.42.57",
-    port=5672,
-    virtual_host="/",
-    credentials=credenciales
-)
+QUEUE_NAME = "transaction_queue"
 
-QUEUE_NAME = "dinner_transactions"
-
-def main():
-    conexion = pika.BlockingConnection(parametros)
-    canal = conexion.channel()
-
-    canal.queue_declare(queue=QUEUE_NAME, durable=True)
-
-    transaction_event = {
-        "eventType": "DinnerRegistered",
-        "amount": 150.50,
-        "cardNumber": "1234567890123456",
-        "restaurantCode": "REST001",
-        "transactionDateTime": datetime.now().isoformat()
-    }
-
-    message = json.dumps(transaction_event)
-
-    canal.basic_publish(
+def send_transaction(event: TransactionEvent) -> None:
+    connection = pika.BlockingConnection(
+        pika.ConnectionParameters(host="localhost")
+    )
+    channel = connection.channel()
+    channel.queue_declare(queue=QUEUE_NAME)
+    message = event.to_json()
+    channel.basic_publish(
         exchange="",
         routing_key=QUEUE_NAME,
-        body=message,
-        properties=pika.BasicProperties(
-            content_type="application/json",
-            delivery_mode=2
-        )
+        body=message
     )
-
-    print(f" [x] Dinner transaction sent: {message}")
-
-    conexion.close()
+    print(f"Sent transaction: {message}")
+    connection.close()
 
 if __name__ == "__main__":
-    main()
+    transaction = TransactionEvent(
+        customer_id="C001",
+        amount=100.0
+    )
+    send_transaction(transaction)

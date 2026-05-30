@@ -1,17 +1,18 @@
+import pytest
 from domain.reward_calculator import calculate_reward
 
-def test_calculate_reward_normal_amount():
-    assert calculate_reward(100) == 10
+def test_calculate_reward_normal_restaurant():
+    points, cashback = calculate_reward(100.0, "REST002")
 
-def test_calculate_reward_decimal_amount():
-    assert calculate_reward(95.50) == 9
+    assert points == 100
+    assert cashback == 5.0
 
-def test_calculate_reward_zero():
-    assert calculate_reward(0) == 0
+def test_calculate_reward_bonus_restaurant():
+    points, cashback = calculate_reward(100.0, "REST001")
 
-def test_calculate_reward_negative_amount():
-    try:
-        calculate_reward(-50)
-        assert False
-    except ValueError:
-        assert True
+    assert points == 110
+    assert cashback == 5.0
+
+def test_calculate_reward_invalid_amount():
+    with pytest.raises(ValueError):
+        calculate_reward(-50.0, "REST001")
