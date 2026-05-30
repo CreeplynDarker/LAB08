@@ -1,23 +1,32 @@
 import os
-import sys
 import pika
+from dotenv import load_dotenv
 from consumer.reward_processor import process_transaction_message
 
-QUEUE_NAME = "dinner_transactions_creeplyndarker"
+load_dotenv()
 
-RABBITMQ_HOST = "213.199.42.57"
-RABBITMQ_PORT = 5672
-RABBITMQ_VHOST = "/"
-RABBITMQ_USER = "students"
-RABBITMQ_PASSWORD = "Ut3c2026"
+def get_required_env(name: str) -> str:
+    value = os.getenv(name)
 
-def create_connection():
-    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASSWORD)
+    if not value:
+        raise RuntimeError(f"Missing required environment variable: {name}")
+
+    return value
+
+def get_queue_name() -> str:
+    return os.getenv("RABBITMQ_QUEUE", "dinner_transactions_creeplyndarker")
+
+
+def create_connection() -> pika.BlockingConnection:
+    credentials = pika.PlainCredentials(
+        username=os.getenv("RABBITMQ_USER", "students"),
+        password=get_required_env("RABBITMQ_PASSWORD"),
+    )
 
     parameters = pika.ConnectionParameters(
-        host=RABBITMQ_HOST,
-        port=RABBITMQ_PORT,
-        virtual_host=RABBITMQ_VHOST,
+        host=os.getenv("RABBITMQ_HOST", "213.199.42.57"),
+        port=int(os.getenv("RABBITMQ_PORT", "5672")),
+        virtual_host=os.getenv("RABBITMQ_VHOST", "/"),
         credentials=credentials,
         connection_attempts=3,
         retry_delay=3,
@@ -29,7 +38,7 @@ def create_connection():
     return pika.BlockingConnection(parameters)
 
 
-def callback(ch, method, properties, body):
+def callback(ch, method, properties, body) -> None:
     try:
         result = process_transaction_message(body.decode())
 
@@ -48,23 +57,24 @@ def callback(ch, method, properties, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
 
-def main():
+def main() -> None:
     connection = None
 
     try:
         connection = create_connection()
         channel = connection.channel()
 
-        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+        queue_name = get_queue_name()
+        channel.queue_declare(queue=queue_name, durable=True)
         channel.basic_qos(prefetch_count=1)
 
         channel.basic_consume(
-            queue=QUEUE_NAME,
+            queue=queue_name,
             on_message_callback=callback,
             auto_ack=False,
         )
 
-        print(f'[*] Waiting for messages in queue "{QUEUE_NAME}". Press CTRL+C to exit.')
+        print(f'[*] Waiting for messages in queue "{queue_name}". Press CTRL+C to exit.')
         channel.start_consuming()
 
     except KeyboardInterrupt:
@@ -76,11 +86,4 @@ def main():
             print("[*] RabbitMQ connection closed.")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n[*] Exiting consumer...")
-        try:
-            sys.exit(0)
-        except SystemExit:
-            os._exit(0)
+    main()
