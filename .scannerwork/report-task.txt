@@ -1,0 +1,6 @@
+projectKey=Jean_Cuzcano_t1
+serverUrl=https://sonarqube.ingsoftware.lat
+serverVersion=26.5.0.122743
+dashboardUrl=https://sonarqube.ingsoftware.lat/dashboard?id=Jean_Cuzcano_t1
+ceTaskId=158cf5ac-b4fd-4187-beae-d144c30d3c37
+ceTaskUrl=https://sonarqube.ingsoftware.lat/api/ce/task?id=158cf5ac-b4fd-4187-beae-d144c30d3c37
